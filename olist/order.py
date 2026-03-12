@@ -4,23 +4,34 @@ from olist.utils import haversine_distance
 from olist.data import Olist
 
 
+
 class Order:
-    '''
-    DataFrames containing all orders as index,
-    and various properties of these orders as columns
-    '''
+    
+
     def __init__(self):
-        # Assign an attribute ".data" to all new instances of Order
+        # Olist().get_data() ile verileri çekiyoruz
         self.data = Olist().get_data()
 
-    def get_wait_time(self, is_delivered=True):
-        """
-        Returns a DataFrame with:
-        [order_id, wait_time, expected_wait_time, delay_vs_expected, order_status]
-        and filters out non-delivered orders unless specified
-        """
-        # Hint: Within this instance method, you have access to the instance of the class Order in the variable self, as well as all its attributes
-        pass  # YOUR CODE HERE
+    def get_wait_time(self, is_wait_time_outlier=False):
+        # 1. Veriyi hazırla
+        orders = self.data['orders'].copy()
+        orders = orders[orders['order_status'] == 'delivered'].copy()
+        
+        # 2. Tarih dönüşümleri
+        cols = ['order_purchase_timestamp', 'order_delivered_customer_date', 'order_estimated_delivery_date']
+        for col in cols:
+            orders[col] = pd.to_datetime(orders[col])
+            
+        # 3. Hesaplamalar
+        orders['wait_time'] = (orders['order_delivered_customer_date'] - orders['order_purchase_timestamp']) / np.timedelta64(1, 'D')
+        orders['expected_wait_time'] = (orders['order_estimated_delivery_date'] - orders['order_purchase_timestamp']) / np.timedelta64(1, 'D')
+        
+        orders['delay_vs_expected'] = (orders['order_delivered_customer_date'] - orders['order_estimated_delivery_date']) / np.timedelta64(1, 'D')
+        orders['delay_vs_expected'] = orders['delay_vs_expected'].clip(lower=0)
+        
+        # 4. İstenen DataFrame'i döndür
+        return orders[['order_id', 'wait_time', 'expected_wait_time', 'delay_vs_expected', 'order_status']]
+
 
     def get_review_score(self):
         """
