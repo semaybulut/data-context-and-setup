@@ -42,6 +42,10 @@ class Order:
         return review_features
 
     def get_number_items(self):
+        items = self.data['order_items'].copy()
+        number_items = items.groupby('order_id').size().reset_index()
+        number_items.columns = ['order_id', 'number_of_items']
+        return number_items
         """
         Returns a DataFrame with:
         order_id, number_of_items
