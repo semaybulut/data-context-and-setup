@@ -34,11 +34,12 @@ class Order:
 
 
     def get_review_score(self):
-        """
-        Returns a DataFrame with:
-        order_id, dim_is_five_star, dim_is_one_star, review_score
-        """
-        pass  # YOUR CODE HERE
+        reviews = self.data['order_reviews'].copy()
+        
+        reviews['dim_is_five_star'] = reviews['review_score'].map(lambda x:1 if x==5 else 0)
+        reviews['dim_is_one_star'] = reviews['review_score'].map(lambda x:1 if x==1 else 0)
+        review_features = reviews[['order_id', 'dim_is_five_star', 'dim_is_one_star', 'review_score']]
+        return review_features
 
     def get_number_items(self):
         """
