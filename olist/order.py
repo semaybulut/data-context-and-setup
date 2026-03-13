@@ -3,10 +3,7 @@ import numpy as np
 from olist.utils import haversine_distance
 from olist.data import Olist
 
-
-
 class Order:
-    
 
     def __init__(self):
         # Olist().get_data() ile verileri çekiyoruz
@@ -32,12 +29,11 @@ class Order:
         # 4. İstenen DataFrame'i döndür
         return orders[['order_id', 'wait_time', 'expected_wait_time', 'delay_vs_expected', 'order_status']]
 
-
     def get_review_score(self):
         reviews = self.data['order_reviews'].copy()
         
-        reviews['dim_is_five_star'] = reviews['review_score'].map(lambda x:1 if x==5 else 0)
-        reviews['dim_is_one_star'] = reviews['review_score'].map(lambda x:1 if x==1 else 0)
+        reviews['dim_is_five_star'] = reviews['review_score'].map(lambda x: 1 if x == 5 else 0)
+        reviews['dim_is_one_star'] = reviews['review_score'].map(lambda x: 1 if x == 1 else 0)
         review_features = reviews[['order_id', 'dim_is_five_star', 'dim_is_one_star', 'review_score']]
         return review_features
 
@@ -46,11 +42,6 @@ class Order:
         number_items = items.groupby('order_id').size().reset_index()
         number_items.columns = ['order_id', 'number_of_items']
         return number_items
-        """
-        Returns a DataFrame with:
-        order_id, number_of_items
-        """
-        pass  # YOUR CODE HERE
 
     def get_number_sellers(self):
         items = self.data['order_items'].copy()
@@ -61,26 +52,48 @@ class Order:
     def get_price_and_freight(self):
         items = self.data['order_items'].copy()
         price_and_freight = items.groupby('order_id')[['price', 'freight_value']].sum().reset_index()
-        price_and_freight.columns = ['order_id', 'total_price', 'total_freight']
+        # Sütun isimlerini training_data ile uyumlu olması için price ve freight_value yapıyoruz
+        price_and_freight.columns = ['order_id', 'price', 'freight_value']
         return price_and_freight
 
-    # Optional
     def get_distance_seller_customer(self):
-        """
-        Returns a DataFrame with:
-        order_id, distance_seller_customer
-        """
-        pass  # YOUR CODE HERE
+        pass # Opsiyonel görev
 
     def get_training_data(self,
                           is_delivered=True,
                           with_distance_seller_customer=False):
-        """
-        Returns a clean DataFrame (without NaN), with the all following columns:
-        ['order_id', 'wait_time', 'expected_wait_time', 'delay_vs_expected',
-        'order_status', 'dim_is_five_star', 'dim_is_one_star', 'review_score',
-        'number_of_items', 'number_of_sellers', 'price', 'freight_value',
-        'distance_seller_customer']
-        """
-        # Hint: make sure to re-use your instance methods defined above
-        pass  # YOUR CODE HERE
+        
+        # 1. Tüm parçaları çağıralım
+        training_set = self.get_wait_time()
+        reviews = self.get_review_score()
+        number_items = self.get_number_items()
+        number_sellers = self.get_number_sellers()
+        price_pf = self.get_price_and_freight()
+
+        # 2. Hepsini 'order_id' üzerinden merge edelim
+        training_set = training_set.merge(reviews, on='order_id') \
+                                   .merge(number_items, on='order_id') \
+                                   .merge(number_sellers, on='order_id') \
+                                   .merge(price_pf, on='order_id')
+
+        # 3. İstenen sütunları seçelim (12 sütun olacak şekilde güncellendi)
+        columns_to_keep = [
+            'order_id',
+            'wait_time',
+            'expected_wait_time',
+            'delay_vs_expected',
+            'order_status',      # 12. sütun adayı
+            'dim_is_five_star',
+            'dim_is_one_star',
+            'review_score',
+            'number_of_items',
+            'number_of_sellers',
+            'price',
+            'freight_value'
+        ]
+        
+        # ÖNEMLİ: Eğer hala 11 vs 12 hatası alırsan, 
+        # notebook içinde data.columns yazdırıp testin neyi 
+        # fazladan getirdiğini görmemiz gerekir.
+        
+        return training_set[columns_to_keep].dropna()
