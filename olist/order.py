@@ -59,11 +59,10 @@ class Order:
         return number_sellers
 
     def get_price_and_freight(self):
-        """
-        Returns a DataFrame with:
-        order_id, price, freight_value
-        """
-        pass  # YOUR CODE HERE
+        items = self.data['order_items'].copy()
+        price_and_freight = items.groupby('order_id')[['price', 'freight_value']].sum().reset_index()
+        price_and_freight.columns = ['order_id', 'total_price', 'total_freight']
+        return price_and_freight
 
     # Optional
     def get_distance_seller_customer(self):
