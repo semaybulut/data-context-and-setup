@@ -138,11 +138,30 @@ class Seller:
 
     def get_review_score(self):
         """
-        Returns a DataFrame with:
-        'seller_id', 'share_of_five_stars', 'share_of_one_stars', 'review_score'
+        Her satıcı için ortalama review_score, 1 ve 5 yıldız oranlarını döndürür.
         """
+        # Sadece ihtiyacımız olan tabloları ham veriden alıyoruz
+        reviews = self.data['order_reviews'][['order_id', 'review_score']].copy()
+        items = self.data['order_items'][['order_id', 'seller_id']].copy()
 
-        pass  # YOUR CODE HERE
+        # Inner join yaparak sadece yorumu olan satıcı/siparişleri tutuyoruz
+        df = items.merge(reviews, on='order_id', how='inner')
+
+        # Yıldız oranları için yardımcı sütunlar
+        df['is_one_star'] = df['review_score'].apply(lambda x: 1 if x == 1 else 0)
+        df['is_five_star'] = df['review_score'].apply(lambda x: 1 if x == 5 else 0)
+
+        # Satıcı bazında grupla ve ortalamaları al
+        result = df.groupby('seller_id').agg({
+            'review_score': 'mean',
+            'is_one_star': 'mean',
+            'is_five_star': 'mean'
+        }).reset_index()
+
+        # Sütun isimlerini testin ve dokümantasyonun beklediği hale getiriyoruz
+        result.columns = ['seller_id', 'review_score', 'share_of_one_stars', 'share_of_five_stars']
+        
+        return result
 
     def get_training_data(self):
         """
