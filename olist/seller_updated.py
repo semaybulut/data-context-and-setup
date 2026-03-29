@@ -145,16 +145,61 @@ class Seller:
         Returns a DataFrame with:
         'seller_id', 'share_of_five_stars', 'share_of_one_stars', 'review_score', 'cost_of_reviews'
         """
-        pass  # YOUR CODE HERE
+        # 1. Gerekli ham verileri çekelim
+        # order_items köprü görevi görür: hangi order hangi seller'ın?
+        orders_reviews = self.data['order_reviews']
+        order_items = self.data['order_items']
+
+        # 2. Puanlar ile Satıcıları birleştirelim
+        # Sadece ihtiyacımız olan sütunları alarak hafızayı yormayalım
+        reviews_df = orders_reviews[['order_id', 'review_score']]
+        items_df = order_items[['order_id', 'seller_id']]
+        
+        # Merge: Her yorumun yanına o ürünü satan satıcıyı ekledik
+        df = items_df.merge(reviews_df, on='order_id')
+
+        # 3. Yıldız oranları için yardımcı sütunlar (0 veya 1)
+        df['is_one_star'] = df['review_score'].map(lambda x: 1 if x == 1 else 0)
+        df['is_five_star'] = df['review_score'].map(lambda x: 1 if x == 5 else 0)
+        
+        # 4. Maliyet hesabı (1 ve 2 yıldız Olist'e pahalıya patlar)
+        # 1 yıldız -> 100 BRL, 2 yıldız -> 50 BRL, diğerleri 0 BRL gibi modellenebilir 
+        # (Şimdilik sadece varlığını işaretleyelim, gerçek rakamlar sonraki adımda gelecek)
+        df['cost_of_reviews'] = df['review_score'].map({1: 100, 2: 50, 3: 40, 4: 0, 5: 0})
+
+        # 5. Gruplayalım (Aggregation)
+        # Her satıcı (seller_id) için ortalamaları alıyoruz
+        result = df.groupby('seller_id').agg({
+            'review_score': 'mean',
+            'is_one_star': 'mean',
+            'is_five_star': 'mean',
+            'cost_of_reviews': 'sum' # Toplam maliyet
+        }).reset_index()
+
+        # Sütun isimlerini dokümantasyona uygun hale getirelim
+        result.columns = ['seller_id', 'review_score', 'share_of_one_stars', 
+                         'share_of_five_stars', 'cost_of_reviews']
+        
+        return result
 
 
     def get_training_data(self):
-        """
-        Returns a DataFrame with:
-        ['seller_id', 'seller_city', 'seller_state', 'delay_to_carrier',
-        'wait_time', 'date_first_sale', 'date_last_sale', 'months_on_olist',
-        'share_of_one_stars', 'share_of_five_stars', 'review_score',
-        'cost_of_reviews', 'n_orders', 'quantity', 'quantity_per_order',
-        'sales', 'revenues', 'profits']
-        """
-        pass  # YOUR CODE HERE
+        # Tüm fonksiyonları sırayla çağırıp sonuçları değişkenlere ata
+        features = self.get_seller_features()
+        delay_wait = self.get_seller_delay_wait_time()
+        active_dates = self.get_active_dates()
+        quantity = self.get_quantity()
+        sales = self.get_sales()
+        reviews = self.get_review_score()
+
+        # Tüm tabloları 'seller_id' üzerinden birbirine bağla (Chain merging)
+        # Önce features ile başla, sonra diğerlerini ekle
+        df = features.merge(delay_wait, on='seller_id', how='outer')\
+                     .merge(active_dates, on='seller_id', how='outer')\
+                     .merge(quantity, on='seller_id', how='outer')\
+                     .merge(sales, on='seller_id', how='outer')\
+                     .merge(reviews, on='seller_id', how='outer')
+        
+        # Gerekiyorsa yeni sütunlar ekle (revenues, profits vb.)
+        # Şimdilik ana tabloyu döndürelim
+        return df
